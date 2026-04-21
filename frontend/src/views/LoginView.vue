@@ -34,9 +34,9 @@
           <label>Email Address</label>
           <input 
             v-model="email" 
-            type="email" 
+            type="text" 
             class="form-input" 
-            placeholder="e.g. juandelacruz@school.edu"
+            placeholder="e.g. juandelacruz@school.edu.ph"
           />
         </div>
         <div class="form-group">
@@ -76,9 +76,9 @@
           <label>Email Address</label>
           <input 
             v-model="email" 
-            type="email" 
+            type="text" 
             class="form-input" 
-            placeholder="e.g. juandelacruz@school.edu"
+            placeholder="e.g. juandelacruz@school.edu.ph"
           />
         </div>
         <div class="form-group">
