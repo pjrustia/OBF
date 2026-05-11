@@ -123,6 +123,7 @@ async function login() {
     })
     localStorage.setItem('token', res.data.access_token)
     localStorage.setItem('fullname', res.data.fullname)
+    localStorage.setItem('user_id', res.data.user_id)
     error.value = ''
     router.push('/items')
   } catch {
