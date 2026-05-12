@@ -6,6 +6,7 @@ from models import db
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///lostfound.db"
 app.config["JWT_SECRET_KEY"] = "your-secret-key"
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 app.config["CORS_HEADERS"] = "Content-Type"
 
 db.init_app(app)
