@@ -82,8 +82,36 @@
           <input v-model="form.date_reported" type="date" class="form-input" />
         </div>
         <div class="form-group full-width">
-          <label>Last Seen / Found Location *</label>
-          <input v-model="form.location" class="form-input" placeholder="e.g. Main Library, 2nd Floor near exit" />
+          <label>Building Location *</label>
+          <input v-model="form.location" class="form-input">
+            <option>Adriatico</option>
+            <option>Alingal</option>
+            <option>Arrupe</option>
+            <option>Belardo</option>
+            <option>Bonoan</option>
+            <option>Burns</option>
+            <option>Chapel</option>
+            <option>Covered Courts</option>
+            <option>Dolan</option>
+            <option>Grounds</option>
+            <option>Library</option>
+            <option>Phelan</option>
+            <option>Richards</option>
+            <option>Santos</option>
+            <option>Xavier Hall</option>
+        </div>
+        <div class="form-group">
+          <label>Floor Number *</label>
+          <select v-model="form.floor" class="form-input">
+            <option>Ground Floor</option>
+            <option>2nd Floor</option>
+            <option>3rd Floor</option>
+            <option>4th Floor</option>
+          </select>
+        </div>
+        <div class="form-group full-width">
+          <label>Item Image *</label>
+          <input type="file" @change="onFileSelected" class="form-input" accept="image/*" />
         </div>
         <div class="form-group full-width">
           <label>Description</label>
@@ -151,6 +179,12 @@ const filterCategory = ref('')
 const filterStatus = ref('')
 const filterLocation = ref('')
 
+//Image storage and handling
+const selectedFile = ref(null)
+const onFileSelected = (event) => {
+  selectedFile.value = event.target.files[0] 
+}
+
 const token = localStorage.getItem('token')
 const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
@@ -158,7 +192,8 @@ const form = ref({
   name: '',
   category: '',
   report_type: 'Lost',
-  location: '',
+  location: 'Alingal', 
+  floor: 'Ground Floor',
   date_reported: '',
   contact_info: '',
   description: ''
@@ -172,6 +207,12 @@ async function fetchItems() {
 
 function applyFilters() {
   let result = items.value
+
+  // Hide own user reports
+  const currentUserId = localStorage.getItem('user_id')
+
+  //Filter user_id
+  result = result.filter(item => String(item.user_id) !== String(currentUserId))
 
   // Search filter
   if (searchQuery.value) {
@@ -208,15 +249,28 @@ async function createItem() {
   }
 
   try {
-    const currentToken = localStorage.getItem('token')
-    const currentHeaders = { 
-      Authorization: `Bearer ${currentToken}`,
-      'Content-Type': 'application/json'
+    const fd = new FormData();
+
+    fd.append('name', form.value.name);
+    fd.append('category', form.value.category);
+    fd.append('report_type', form.value.report_type);
+    fd.append('location', form.value.location);
+    fd.append('floor', form.value.floor);
+    fd.append('date_reported', form.value.date_reported);
+    fd.append('description', form.value.description);
+    fd.append('contact_info', form.value.contact_info);
+
+    if (selectedFile.value) {
+      fd.append('image', selectedFile.value);
     }
-    await axios.post('http://127.0.0.1:5000/api/items/', form.value, { headers: currentHeaders })
+
+    const currentToken = localStorage.getItem('token')
+
+    await axios.post('http://127.0.0.1:5000/api/items/', fd, { headers: {Authorization: `Bearer ${currentToken}` } })
     resetForm()
     showForm.value = false
     fetchItems()
+
   } catch (err) {
     console.log(err)
     alert('Failed to create item. Make sure you are logged in.')
