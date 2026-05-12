@@ -20,6 +20,8 @@ class Item(db.Model):
     report_type = db.Column(db.String, nullable=False)
     status = db.Column(db.String, default="Active")
     location = db.Column(db.String, nullable=False)
+    floor = db.Column(db.String, nullable=False)#Bago po
+    image_url = db.Column(db.String, nullable=False)#Bago ulit
     date_reported = db.Column(db.Date, nullable=False)
     contact_info = db.Column(db.String)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
