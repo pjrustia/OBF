@@ -27,4 +27,4 @@ def login():
     if not user or user.password != data["password"]:
         return jsonify({"message": "Invalid credentials"}), 401
     token = create_access_token(identity=str(user.user_id))
-    return jsonify({"access_token": token, "fullname": user.fullname})
+    return jsonify({"access_token": token, "fullname": user.fullname, "user_id": user.user_id}) # Bago po
