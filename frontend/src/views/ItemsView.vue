@@ -1,17 +1,5 @@
 <template>
   <div class="items-page">
-    <!-- Top Navigation -->
-    <div class="top-nav">
-      <div class="logo">🔍 One Big Find</div>
-      <div class="nav-items">
-        <span class="nav-link active">Browse Items</span>
-        <span class="nav-link">My Reports</span>
-      </div>
-      <div class="user-chip" @click="logout">
-        👤 {{ userName }} &nbsp;▾
-      </div>
-    </div>
-
     <!-- Filter Toolbar -->
     <div class="filter-toolbar">
       <input 
@@ -38,96 +26,23 @@
       </select>
       <select v-model="filterLocation" @change="applyFilters" class="filter-select">
         <option value="">All Buildings</option>
-        <option>Main Library</option>
-        <option>Gym</option>
-        <option>Cafeteria</option>
-        <option>Computer Lab</option>
-        <option>Parking Lot</option>
+        <option>Adriatico</option>
+        <option>Alingal</option>
+        <option>Arrupe</option>
+        <option>Belardo</option>
+        <option>Bonoan</option>
+        <option>Burns</option>
+        <option>Chapel</option>
+        <option>Covered Courts</option>
+        <option>Dolan</option>
+        <option>Grounds</option>
+        <option>Library</option>
+        <option>Phelan</option>
+        <option>Richards</option>
+        <option>Santos</option>
+        <option>Xavier Hall</option>
       </select>
-      <button class="btn-add" @click="showForm = !showForm">
-        {{ showForm ? '✕ Close Form' : '+ Report Item' }}
-      </button>
-    </div>
-
-    <!-- Report Form (Toggle) -->
-    <div v-if="showForm" class="report-form-container">
-      <h3>{{ editingId ? '✏️ Edit Report' : '📋 Report a Lost or Found Item' }}</h3>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Item Name *</label>
-          <input v-model="form.name" class="form-input" placeholder="e.g. Black Jansport Backpack" />
-        </div>
-        <div class="form-group">
-          <label>Category *</label>
-          <select v-model="form.category" class="form-input">
-            <option value="">Select Category...</option>
-            <option>Electronics</option>
-            <option>ID/Cards</option>
-            <option>Clothing</option>
-            <option>Accessories</option>
-            <option>Books</option>
-            <option>Keys</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Report Type *</label>
-          <select v-model="form.report_type" class="form-input">
-            <option>Lost</option>
-            <option>Found</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Date Lost/Found *</label>
-          <input v-model="form.date_reported" type="date" class="form-input" />
-        </div>
-        <div class="form-group full-width">
-          <label>Building Location *</label>
-          <input v-model="form.location" class="form-input">
-            <option>Adriatico</option>
-            <option>Alingal</option>
-            <option>Arrupe</option>
-            <option>Belardo</option>
-            <option>Bonoan</option>
-            <option>Burns</option>
-            <option>Chapel</option>
-            <option>Covered Courts</option>
-            <option>Dolan</option>
-            <option>Grounds</option>
-            <option>Library</option>
-            <option>Phelan</option>
-            <option>Richards</option>
-            <option>Santos</option>
-            <option>Xavier Hall</option>
-        </div>
-        <div class="form-group">
-          <label>Floor Number *</label>
-          <select v-model="form.floor" class="form-input">
-            <option>Ground Floor</option>
-            <option>2nd Floor</option>
-            <option>3rd Floor</option>
-            <option>4th Floor</option>
-          </select>
-        </div>
-        <div class="form-group full-width">
-          <label>Item Image *</label>
-          <input type="file" @change="onFileSelected" class="form-input" accept="image/*" />
-        </div>
-        <div class="form-group full-width">
-          <label>Description</label>
-          <textarea v-model="form.description" class="form-textarea" placeholder="Describe the item — color, size, brand, distinguishing marks..."></textarea>
-        </div>
-        <div class="form-group full-width">
-          <label>Contact Info</label>
-          <input v-model="form.contact_info" class="form-input" placeholder="Phone or alternate email (visible only to matched user)" />
-        </div>
-      </div>
-      <div class="form-buttons">
-        <button class="btn-submit" @click="editingId ? updateItem() : createItem()">
-          {{ editingId ? 'Update Report' : 'Submit Report' }}
-        </button>
-        <button v-if="editingId" class="btn-cancel" @click="cancelEdit">Cancel</button>
-      </div>
+      <router-link to="/report" class="btn-add">+ Report Item</router-link>
     </div>
 
     <!-- Items Grid -->
@@ -145,9 +60,9 @@
           <span v-if="item.status === 'Claimed'" class="item-badge badge-claimed">Claimed</span>
         </div>
         <div class="item-actions">
-          <button class="action-btn edit" @click="startEdit(item)" title="Edit">✏️</button>
-          <button class="action-btn delete" @click="deleteItem(item.item_id)" title="Delete">🗑️</button>
-          <button v-if="item.status !== 'Claimed'" class="action-btn claim" @click="markClaimed(item.item_id)" title="Mark as Claimed">✓</button>
+          <button v-if="isItemOwner(item)" class="action-btn edit" @click="startEdit(item)" title="Edit">✏️</button>
+          <button v-if="isItemOwner(item)" class="action-btn delete" @click="deleteItem(item.item_id)" title="Delete">🗑️</button>
+          <button v-if="item.status !== 'Claimed' && isItemOwner(item)" class="action-btn claim" @click="markClaimed(item.item_id)" title="Mark as Claimed">✓</button>
         </div>
       </div>
     </div>
@@ -170,7 +85,7 @@ const router = useRouter()
 const items = ref([])
 const filteredItems = ref([])
 const editingId = ref(null)
-const showForm = ref(false)
+const showDropdown = ref(false)
 const userName = ref(localStorage.getItem('fullname') || 'User')
 
 // Filters
@@ -208,12 +123,6 @@ async function fetchItems() {
 function applyFilters() {
   let result = items.value
 
-  // Hide own user reports
-  const currentUserId = localStorage.getItem('user_id')
-
-  //Filter user_id
-  result = result.filter(item => String(item.user_id) !== String(currentUserId))
-
   // Search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -240,6 +149,10 @@ function applyFilters() {
   }
 
   filteredItems.value = result
+}
+
+function isItemOwner(item) {
+  return String(item.user_id) === String(localStorage.getItem('user_id') || '')
 }
 
 async function createItem() {
@@ -337,6 +250,8 @@ function logout() {
   if (confirm('Are you sure you want to logout?')) {
     localStorage.removeItem('token')
     localStorage.removeItem('fullname')
+    localStorage.removeItem('user_id')
+    showDropdown.value = false
     router.push('/')
   }
 }
@@ -377,12 +292,12 @@ onMounted(fetchItems)
 <style scoped>
 .items-page {
   min-height: 100vh;
-  background: #f0f2f5;
+  background: var(--background);
 }
 
 /* Top Navigation */
 .top-nav {
-  background: #1a237e;
+  background: linear-gradient(90deg, var(--primary), var(--primary-soft));
   color: #fff;
   padding: 14px 32px;
   display: flex;
@@ -391,7 +306,7 @@ onMounted(fetchItems)
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
 }
 
 .logo {
@@ -432,11 +347,40 @@ onMounted(fetchItems)
   background: rgba(255, 255, 255, 0.25);
 }
 
+.user-menu {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 120px;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  color: #333;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background: #f5f5f5;
+}
+
 /* Filter Toolbar */
 .filter-toolbar {
   padding: 18px 32px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -468,19 +412,24 @@ onMounted(fetchItems)
 }
 
 .btn-add {
-  background: #3949ab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
   color: #fff;
+  text-decoration: none;
   border: none;
   padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background 0.3s, transform 0.2s;
 }
 
 .btn-add:hover {
-  background: #1a237e;
+  background: var(--primary-strong);
+  transform: translateY(-1px);
 }
 
 /* Report Form */
@@ -583,12 +532,12 @@ onMounted(fetchItems)
 }
 
 .item-card {
-  background: #fff;
-  border-radius: 12px;
-  border: 1.5px solid #e8eaf6;
+  background: var(--surface);
+  border-radius: 18px;
+  border: 1px solid var(--border);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: all 0.3s;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
+  transition: transform 0.25s, box-shadow 0.25s;
   position: relative;
 }
 

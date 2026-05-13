@@ -126,6 +126,8 @@ def delete_item(id):
 @jwt_required()
 def update_status(id):
     item = Item.query.get_or_404(id)
+    if str(item.user_id) != get_jwt_identity():
+        return jsonify({"message": "Unauthorized"}), 403
     data = request.json
     item.status = data["status"]
     db.session.commit()
