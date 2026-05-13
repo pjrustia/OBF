@@ -3,32 +3,31 @@ import LoginView from '../views/LoginView.vue'
 import ItemsView from '../views/ItemsView.vue'
 import ReportView from '../views/ReportView.vue'
 import DashboardView from '../views/DashboardView.vue'
+import ItemDetailView from '../views/ItemDetailView.vue'
+
+const isLoggedIn = () => !!localStorage.getItem('token')
 
 const routes = [
   { path: '/', component: LoginView },
   {
     path: '/dashboard',
     component: DashboardView,
-    beforeEnter: (to, from, next) => {
-      if (!localStorage.getItem('token')) next('/')
-      else next()
-    }
+    beforeEnter: () => isLoggedIn() || '/'
   },
   {
     path: '/items',
     component: ItemsView,
-    beforeEnter: (to, from, next) => {
-      if (!localStorage.getItem('token')) next('/')
-      else next()
-    }
+    beforeEnter: () => isLoggedIn() || '/'
+  },
+  {
+    path: '/items/:id',
+    component: ItemDetailView,
+    beforeEnter: () => isLoggedIn() || '/'
   },
   {
     path: '/report',
     component: ReportView,
-    beforeEnter: (to, from, next) => {
-      if (!localStorage.getItem('token')) next('/')
-      else next()
-    }
+    beforeEnter: () => isLoggedIn() || '/'
   }
 ]
 

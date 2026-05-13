@@ -45,21 +45,134 @@
       <router-link to="/report" class="btn-add">+ Report Item</router-link>
     </div>
 
+    <!-- Edit Form -->
+    <div v-if="showForm" class="report-form-container">
+      <h3>{{ editingId ? 'Edit Report' : 'New Report' }}</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Item Name *</label>
+          <input v-model="form.name" class="form-input" placeholder="e.g. Black Jansport Backpack" />
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select v-model="form.category" class="form-input">
+            <option value="">Select Category...</option>
+            <option>Electronics</option>
+            <option>ID/Cards</option>
+            <option>Clothing</option>
+            <option>Accessories</option>
+            <option>Books</option>
+            <option>Keys</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Report Type</label>
+          <select v-model="form.report_type" class="form-input">
+            <option>Lost</option>
+            <option>Found</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date *</label>
+          <input v-model="form.date_reported" type="date" class="form-input" />
+        </div>
+        <div class="form-group full-width">
+          <label>Location *</label>
+          <select v-model="form.location" class="form-input">
+            <option value="">Select Building...</option>
+            <option>Adriatico</option>
+            <option>Alingal</option>
+            <option>Arrupe</option>
+            <option>Belardo</option>
+            <option>Bonoan</option>
+            <option>Burns</option>
+            <option>Chapel</option>
+            <option>Covered Courts</option>
+            <option>Dolan</option>
+            <option>Grounds</option>
+            <option>Library</option>
+            <option>Phelan</option>
+            <option>Richards</option>
+            <option>Santos</option>
+            <option>Xavier Hall</option>
+          </select>
+        </div>
+
+        <!-- Image Upload with Preview -->
+        <div class="form-group full-width">
+          <label>Item Images (optional, max 5)</label>
+
+          <!-- Existing images when editing -->
+          <div v-if="editingId && form.existingImages?.length" class="image-preview-row">
+            <div v-for="(img, index) in form.existingImages" :key="'existing-' + index" class="preview-thumb">
+              <img :src="`http://127.0.0.1:5000/api/items/uploads/${img}`" class="thumb-img" />
+            </div>
+            <p class="preview-hint">⚠️ Uploading new images will replace these.</p>
+          </div>
+
+          <input
+            type="file"
+            @change="onFileSelected"
+            class="form-input"
+            accept="image/*"
+            multiple
+            :key="fileInputKey"
+          />
+
+          <!-- New file previews -->
+          <div v-if="selectedFiles.length" class="image-preview-row" style="margin-top:8px;">
+            <div v-for="(file, index) in selectedFiles" :key="'new-' + index" class="preview-thumb">
+              <img :src="getPreviewUrl(file)" class="thumb-img" style="border-color:#5c6bc0;" />
+              <button class="thumb-remove" @click="removeSelectedFile(index)">✕</button>
+            </div>
+            <p class="preview-hint" style="color:#5c6bc0;">{{ selectedFiles.length }} file(s) selected</p>
+          </div>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Description</label>
+          <textarea v-model="form.description" class="form-textarea" placeholder="Describe the item..."></textarea>
+        </div>
+        <div class="form-group full-width">
+          <label>Contact Info</label>
+          <input v-model="form.contact_info" class="form-input" placeholder="Phone or email" />
+        </div>
+      </div>
+      <div class="form-buttons">
+        <button class="btn-submit" @click="editingId ? updateItem() : createItem()">
+          {{ editingId ? 'Save Changes' : 'Submit' }}
+        </button>
+        <button class="btn-cancel" @click="cancelEdit">Cancel</button>
+      </div>
+    </div>
+
     <!-- Items Grid -->
     <div class="items-grid">
-      <div v-for="item in filteredItems" :key="item.item_id" class="item-card">
+      <div
+        v-for="item in filteredItems"
+        :key="item.item_id"
+        class="item-card"
+        :class="{ clickable: !isItemOwner(item) }"
+        @click="!isItemOwner(item) ? viewItem(item.item_id) : null"
+      >
         <div class="item-icon">
-          {{ getItemIcon(item.category) }}
+          <img
+            v-if="item.image_url"
+            :src="`http://127.0.0.1:5000/api/items/uploads/${item.image_url.split(',')[0].trim()}`"
+            alt="item"
+            class="item-img"
+          />
+          <span v-else>{{ getItemIcon(item.category) }}</span>
         </div>
         <div class="item-info">
           <div class="item-name">{{ item.name }}</div>
           <div class="item-meta">📍 {{ item.location }} · {{ formatDate(item.date_reported) }}</div>
-          <span class="item-badge" :class="getBadgeClass(item.report_type)">
-            {{ item.report_type }}
-          </span>
+          <span class="item-badge" :class="getBadgeClass(item.report_type)">{{ item.report_type }}</span>
           <span v-if="item.status === 'Claimed'" class="item-badge badge-claimed">Claimed</span>
+          <div v-if="!isItemOwner(item)" class="view-hint">👆 Click to view details</div>
         </div>
-        <div class="item-actions">
+        <div class="item-actions" @click.stop>
           <button v-if="isItemOwner(item)" class="action-btn edit" @click="startEdit(item)" title="Edit">✏️</button>
           <button v-if="isItemOwner(item)" class="action-btn delete" @click="deleteItem(item.item_id)" title="Delete">🗑️</button>
           <button v-if="item.status !== 'Claimed' && isItemOwner(item)" class="action-btn claim" @click="markClaimed(item.item_id)" title="Mark as Claimed">✓</button>
@@ -77,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 
@@ -85,8 +198,8 @@ const router = useRouter()
 const items = ref([])
 const filteredItems = ref([])
 const editingId = ref(null)
-const showDropdown = ref(false)
-const userName = ref(localStorage.getItem('fullname') || 'User')
+const showForm = ref(false)
+const fileInputKey = ref(0) // used to reset file input
 
 // Filters
 const searchQuery = ref('')
@@ -94,24 +207,33 @@ const filterCategory = ref('')
 const filterStatus = ref('')
 const filterLocation = ref('')
 
-//Image storage and handling
-const selectedFile = ref(null)
+// Images
+const selectedFiles = ref([])
+
 const onFileSelected = (event) => {
-  selectedFile.value = event.target.files[0] 
+  selectedFiles.value = Array.from(event.target.files).slice(0, 5)
+}
+
+const getPreviewUrl = (file) => URL.createObjectURL(file)
+
+const removeSelectedFile = (index) => {
+  selectedFiles.value = selectedFiles.value.filter((_, i) => i !== index)
 }
 
 const token = localStorage.getItem('token')
+const currentUserId = localStorage.getItem('user_id')
 const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
 const form = ref({
   name: '',
   category: '',
   report_type: 'Lost',
-  location: 'Alingal', 
+  location: '',
   floor: 'Ground Floor',
   date_reported: '',
   contact_info: '',
-  description: ''
+  description: '',
+  existingImages: []
 })
 
 async function fetchItems() {
@@ -122,37 +244,26 @@ async function fetchItems() {
 
 function applyFilters() {
   let result = items.value
-
-  // Search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(item => 
-      item.name.toLowerCase().includes(query) || 
+    result = result.filter(item =>
+      item.name.toLowerCase().includes(query) ||
       item.location.toLowerCase().includes(query) ||
       item.description?.toLowerCase().includes(query)
     )
   }
-
-  // Category filter
-  if (filterCategory.value) {
-    result = result.filter(item => item.category === filterCategory.value)
-  }
-
-  // Status filter
-  if (filterStatus.value) {
-    result = result.filter(item => item.report_type === filterStatus.value)
-  }
-
-  // Location filter
-  if (filterLocation.value) {
-    result = result.filter(item => item.location.includes(filterLocation.value))
-  }
-
+  if (filterCategory.value) result = result.filter(item => item.category === filterCategory.value)
+  if (filterStatus.value) result = result.filter(item => item.report_type === filterStatus.value)
+  if (filterLocation.value) result = result.filter(item => item.location.includes(filterLocation.value))
   filteredItems.value = result
 }
 
 function isItemOwner(item) {
-  return String(item.user_id) === String(localStorage.getItem('user_id') || '')
+  return String(item.user_id) === String(currentUserId || '')
+}
+
+function viewItem(id) {
+  router.push(`/items/${id}`)
 }
 
 async function createItem() {
@@ -160,39 +271,47 @@ async function createItem() {
     alert('Please fill in all required fields (*).')
     return
   }
-
   try {
-    const fd = new FormData();
-
-    fd.append('name', form.value.name);
-    fd.append('category', form.value.category);
-    fd.append('report_type', form.value.report_type);
-    fd.append('location', form.value.location);
-    fd.append('floor', form.value.floor);
-    fd.append('date_reported', form.value.date_reported);
-    fd.append('description', form.value.description);
-    fd.append('contact_info', form.value.contact_info);
-
-    if (selectedFile.value) {
-      fd.append('image', selectedFile.value);
-    }
+    const fd = new FormData()
+    fd.append('name', form.value.name)
+    fd.append('category', form.value.category)
+    fd.append('report_type', form.value.report_type)
+    fd.append('location', form.value.location)
+    fd.append('floor', form.value.floor)
+    fd.append('date_reported', form.value.date_reported)
+    fd.append('description', form.value.description)
+    fd.append('contact_info', form.value.contact_info)
+    selectedFiles.value.forEach(file => fd.append('images', file))
 
     const currentToken = localStorage.getItem('token')
-
-    await axios.post('http://127.0.0.1:5000/api/items/', fd, { headers: {Authorization: `Bearer ${currentToken}` } })
+    await axios.post('http://127.0.0.1:5000/api/items/', fd, {
+      headers: { Authorization: `Bearer ${currentToken}` }
+    })
     resetForm()
     showForm.value = false
     fetchItems()
-
   } catch (err) {
-    console.log(err)
     alert('Failed to create item. Make sure you are logged in.')
   }
 }
 
 async function updateItem() {
   try {
-    await axios.put(`http://127.0.0.1:5000/api/items/${editingId.value}`, form.value, { headers })
+    const fd = new FormData()
+    fd.append('name', form.value.name)
+    fd.append('category', form.value.category)
+    fd.append('report_type', form.value.report_type)
+    fd.append('location', form.value.location)
+    fd.append('floor', form.value.floor || 'Ground Floor')
+    fd.append('date_reported', form.value.date_reported)
+    fd.append('description', form.value.description || '')
+    fd.append('contact_info', form.value.contact_info || '')
+    selectedFiles.value.forEach(file => fd.append('images', file))
+
+    const currentToken = localStorage.getItem('token')
+    await axios.put(`http://127.0.0.1:5000/api/items/${editingId.value}`, fd, {
+      headers: { Authorization: `Bearer ${currentToken}` }
+    })
     resetForm()
     showForm.value = false
     fetchItems()
@@ -223,13 +342,26 @@ async function markClaimed(id) {
 
 function startEdit(item) {
   editingId.value = item.item_id
-  form.value = { ...item }
+  form.value = {
+    name: item.name,
+    category: item.category,
+    report_type: item.report_type,
+    location: item.location,
+    floor: item.floor || 'Ground Floor',
+    date_reported: item.date_reported,
+    description: item.description || '',
+    contact_info: item.contact_info || '',
+    existingImages: item.image_url ? item.image_url.split(',').map(s => s.trim()) : []
+  }
+  selectedFiles.value = []
+  fileInputKey.value++  // resets the file input element
   showForm.value = true
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function cancelEdit() {
   editingId.value = null
+  showForm.value = false
   resetForm()
 }
 
@@ -240,20 +372,14 @@ function resetForm() {
     category: '',
     report_type: 'Lost',
     location: '',
+    floor: 'Ground Floor',
     date_reported: '',
     contact_info: '',
-    description: ''
+    description: '',
+    existingImages: []
   }
-}
-
-function logout() {
-  if (confirm('Are you sure you want to logout?')) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('fullname')
-    localStorage.removeItem('user_id')
-    showDropdown.value = false
-    router.push('/')
-  }
+  selectedFiles.value = []
+  fileInputKey.value++
 }
 
 function getItemIcon(category) {
@@ -277,9 +403,7 @@ function formatDate(dateStr) {
   if (!dateStr) return 'Unknown date'
   const date = new Date(dateStr)
   const now = new Date()
-  const diffTime = Math.abs(now - date)
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
+  const diffDays = Math.ceil(Math.abs(now - date) / (1000 * 60 * 60 * 24))
   if (diffDays === 0) return 'Today'
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
@@ -295,87 +419,6 @@ onMounted(fetchItems)
   background: var(--background);
 }
 
-/* Top Navigation */
-.top-nav {
-  background: linear-gradient(90deg, var(--primary), var(--primary-soft));
-  color: #fff;
-  padding: 14px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
-}
-
-.logo {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
-.nav-items {
-  display: flex;
-  gap: 24px;
-  font-size: 14px;
-}
-
-.nav-link {
-  opacity: 0.75;
-  cursor: pointer;
-  transition: opacity 0.3s;
-}
-
-.nav-link:hover,
-.nav-link.active {
-  opacity: 1;
-  font-weight: 600;
-}
-
-.user-chip {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.user-chip:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.user-menu {
-  position: relative;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  min-width: 120px;
-  z-index: 1000;
-  margin-top: 4px;
-}
-
-.dropdown-item {
-  padding: 10px 16px;
-  cursor: pointer;
-  color: #333;
-  font-size: 14px;
-  transition: background 0.2s;
-}
-
-.dropdown-item:hover {
-  background: #f5f5f5;
-}
-
-/* Filter Toolbar */
 .filter-toolbar {
   padding: 18px 32px;
   background: var(--surface);
@@ -432,11 +475,10 @@ onMounted(fetchItems)
   transform: translateY(-1px);
 }
 
-/* Report Form */
 .report-form-container {
   background: #fff;
   padding: 28px 32px;
-  margin: 24px 32px;
+  margin: 24px 0;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
@@ -454,16 +496,20 @@ onMounted(fetchItems)
   margin-bottom: 20px;
 }
 
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .form-group.full-width {
   grid-column: 1 / -1;
 }
 
 .form-group label {
-  display: block;
   font-size: 12px;
   font-weight: 700;
   color: #888;
-  margin-bottom: 6px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
@@ -477,6 +523,7 @@ onMounted(fetchItems)
   font-size: 14px;
   color: #444;
   background: #fafafa;
+  box-sizing: border-box;
 }
 
 .form-textarea {
@@ -485,11 +532,50 @@ onMounted(fetchItems)
   font-family: inherit;
 }
 
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: #5c6bc0;
-  background: #fff;
+/* Image Preview */
+.image-preview-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+
+.preview-thumb {
+  position: relative;
+}
+
+.thumb-img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1.5px solid #ddd;
+  display: block;
+}
+
+.thumb-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #e53935;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  cursor: pointer;
+  line-height: 18px;
+  text-align: center;
+  padding: 0;
+}
+
+.preview-hint {
+  width: 100%;
+  font-size: 11px;
+  color: #888;
+  margin: 0;
 }
 
 .form-buttons {
@@ -508,9 +594,7 @@ onMounted(fetchItems)
   cursor: pointer;
 }
 
-.btn-submit:hover {
-  background: #0d47a1;
-}
+.btn-submit:hover { background: #0d47a1; }
 
 .btn-cancel {
   background: #757575;
@@ -523,12 +607,11 @@ onMounted(fetchItems)
   cursor: pointer;
 }
 
-/* Items Grid */
 .items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
-  padding: 24px 32px;
+  padding: 24px 0;
 }
 
 .item-card {
@@ -541,23 +624,36 @@ onMounted(fetchItems)
   position: relative;
 }
 
-.item-card:hover {
+.item-card.clickable { cursor: pointer; }
+
+.item-card.clickable:hover {
+  box-shadow: 0 8px 24px rgba(92, 107, 192, 0.2);
+  transform: translateY(-3px);
+  border-color: #5c6bc0;
+}
+
+.item-card:not(.clickable):hover {
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   transform: translateY(-2px);
 }
 
 .item-icon {
-  height: 100px;
+  height: 120px;
   background: #e8eaf6;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 48px;
+  overflow: hidden;
 }
 
-.item-info {
-  padding: 14px;
+.item-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
+
+.item-info { padding: 14px; }
 
 .item-name {
   font-size: 14px;
@@ -583,19 +679,15 @@ onMounted(fetchItems)
   margin-right: 6px;
 }
 
-.badge-lost {
-  background: #fce4ec;
-  color: #c62828;
-}
+.badge-lost { background: #fce4ec; color: #c62828; }
+.badge-found { background: #e8f5e9; color: #2e7d32; }
+.badge-claimed { background: #fffde7; color: #f57f17; }
 
-.badge-found {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-
-.badge-claimed {
-  background: #fffde7;
-  color: #f57f17;
+.view-hint {
+  font-size: 11px;
+  color: #5c6bc0;
+  margin-top: 8px;
+  font-style: italic;
 }
 
 .item-actions {
@@ -616,31 +708,13 @@ onMounted(fetchItems)
   transition: all 0.3s;
 }
 
-.action-btn.edit {
-  background: #e8eaf6;
-}
+.action-btn.edit { background: #e8eaf6; }
+.action-btn.edit:hover { background: #c5cae9; }
+.action-btn.delete { background: #ffebee; }
+.action-btn.delete:hover { background: #ffcdd2; }
+.action-btn.claim { background: #e8f5e9; }
+.action-btn.claim:hover { background: #c8e6c9; }
 
-.action-btn.edit:hover {
-  background: #c5cae9;
-}
-
-.action-btn.delete {
-  background: #ffebee;
-}
-
-.action-btn.delete:hover {
-  background: #ffcdd2;
-}
-
-.action-btn.claim {
-  background: #e8f5e9;
-}
-
-.action-btn.claim:hover {
-  background: #c8e6c9;
-}
-
-/* Empty State */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -659,28 +733,11 @@ onMounted(fetchItems)
   margin-bottom: 8px;
 }
 
-.empty-state p {
-  font-size: 14px;
-}
+.empty-state p { font-size: 14px; }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .filter-toolbar {
-    padding: 12px 16px;
-  }
-  
-  .items-grid {
-    grid-template-columns: 1fr;
-    padding: 16px;
-  }
-  
-  .report-form-container {
-    margin: 16px;
-    padding: 20px;
-  }
-  
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
+  .filter-toolbar { padding: 12px 16px; }
+  .items-grid { grid-template-columns: 1fr; padding: 16px 0; }
+  .form-grid { grid-template-columns: 1fr; }
 }
 </style>
